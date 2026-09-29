@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Голосование</title>
+<style>
+:root{--ink:#14213d;--muted:#5b6478;--accent:#1d4ed8;--line:#d7deee;--ok:#15803d;--err:#b91c1c}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:#0b1430}
+
+/* Стена из фотографий позади всего */
+.wall{position:fixed;inset:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));grid-auto-rows:120px;gap:4px;overflow:hidden;z-index:0}
+.wall div{background-size:cover;background-position:center}
+.wall::after{content:"";position:absolute;inset:0;background:linear-gradient(160deg,rgba(11,20,48,.72),rgba(11,20,48,.88))}
+
+main{position:relative;z-index:1;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px 14px}
+.card{width:100%;max-width:480px;background:#fff;border-radius:18px;padding:26px 22px;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+h1{font-size:1.5rem;margin:0 0 4px;line-height:1.25}
+.step{color:var(--muted);font-size:.9rem;margin:0 0 18px}
+label.f{display:block;font-weight:600;margin:16px 0 6px}
+input[type=text]{width:100%;padding:13px;font:inherit;border:1px solid var(--line);border-radius:10px}
+.who{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.who label{border:2px solid var(--line);border-radius:10px;padding:12px;text-align:center;cursor:pointer;font-weight:600}
+.who input{position:absolute;opacity:0}
+.who label:has(input:checked){border-color:var(--accent);color:var(--accent);background:#eef3ff}
+.who label:has(input:focus-visible){outline:3px solid var(--accent);outline-offset:2px}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:8px}
+.chip,.opt{font:inherit;font-weight:600;padding:12px 6px;border:2px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);cursor:pointer}
+.opt{display:block;width:100%;margin-bottom:8px;text-align:left;padding:14px}
+.chip[aria-pressed=true],.opt[aria-pressed=true]{border-color:var(--accent);background:#eef3ff;color:var(--accent)}
+.classlist{background:#13203f;border-radius:14px;padding:6px 20px}
+.cls{display:block;width:100%;background:none;border:0;color:#fff;text-align:left;font:inherit;font-size:1.9rem;font-weight:700;padding:20px 0 0;cursor:pointer}
+.cls i{display:block;height:5px;border-radius:3px;margin:12px 0 0;background:#2a3b66;transition:background .2s}
+.cls:hover i,.cls:focus-visible i,.cls[aria-pressed=true] i{background:#3b82f6}
+.cls:last-child{padding-bottom:16px}
+.cls:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}
+.primary{width:100%;margin-top:20px;padding:14px;font:inherit;font-weight:700;color:#fff;background:var(--accent);border:0;border-radius:10px;cursor:pointer}
+.primary:disabled{opacity:.5;cursor:default}
+.back{background:none;border:0;color:var(--muted);font:inherit;cursor:pointer;margin-top:12px;padding:6px 0}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:8px 14px;background:#f4f7fd;border-radius:10px;padding:14px}
+dt{color:var(--muted)}dd{margin:0;font-weight:600;word-break:break-word}
+#cap{margin-top:14px;min-height:65px}
+.msg{margin-top:14px;padding:12px;border-radius:10px;font-weight:600;display:none}
+.msg.err{display:block;background:#fee2e2;color:var(--err)}
+.msg.err:empty{display:none}
+.done{text-align:center}
+.done .big{font-size:3rem;color:var(--ok);line-height:1}
+[hidden]{display:none!important}
+</style>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+</head>
+<body>
+<div class="wall" id="wall" aria-hidden="true"></div>
+
+<main>
+<div class="card">
+
+  <section id="s1">
+    <h1>Голосование</h1>
+    <p class="step">Шаг 1 из 4. Кто голосует</p>
+    <div class="who" role="radiogroup" aria-label="Кто голосует">
+      <label><input type="radio" name="type" value="student" checked>Я ученик</label>
+      <label><input type="radio" name="type" value="parent">Я родитель</label>
+    </div>
+    <label class="f" for="name" id="nameLabel">Твоё имя и фамилия</label>
+    <input type="text" id="name" maxlength="80" autocomplete="off" placeholder="Например: Иван Петров">
+    <div class="msg err" id="e1"></div>
+    <button class="primary" id="n1">Далее</button>
+  </section>
+
+  <section id="sv" hidden>
+    <h1>🎒 В каком ты классе?</h1>
+    <p class="step">Шаг 2 из 4. Класс ученика (у родителя: класс ребёнка)</p>
+    <label class="f">Параллель</label>
+    <div class="chips" id="vg"></div>
+    <label class="f">Буква</label>
+    <div class="chips" id="vl"></div>
+    <div class="msg err" id="ev"></div>
+    <button class="primary" id="nv">Далее</button>
+    <button class="back" data-back="s1">Назад</button>
+  </section>
+
+  <section id="s2" hidden>
+    <h1>За какой класс голосуешь?</h1>
+    <p class="step">Шаг 3 из 4. Нажми на класс, дальше перейдёт само</p>
+    <div class="classlist" id="classes"></div>
+    <button class="back" data-back="sv">Назад</button>
+  </section>
+
+  <section id="s4" hidden>
+    <h1>Подтверждение</h1>
+    <p class="step">Шаг 4 из 4. Проверь данные. После отправки изменить голос нельзя</p>
+    <dl>
+      <dt>Голосует</dt><dd id="c-type"></dd>
+      <dt>Ученик</dt><dd id="c-name"></dd>
+      <dt>Класс ученика</dt><dd id="c-vclass"></dd>
+      <dt>Голос за класс</dt><dd id="c-class"></dd>
+    </dl>
+    <div id="cap"></div>
+    <div class="msg err" id="e4"></div>
+    <button class="primary" id="send">Подтвердить голос</button>
+    <button class="back" data-back="s2">Назад</button>
+  </section>
+
+  <section id="s5" class="done" hidden>
+    <div class="big">✓</div>
+    <h1>Голос принят</h1>
+    <p class="step">Спасибо за участие!</p>
+  </section>
+
+</div>
+</main>
+
+<script>
+/* ====== НАСТРОЙКИ ====== */
+const SUPABASE_URL = "https://ВАШ-ПРОЕКТ.supabase.co";
+const SUPABASE_ANON_KEY = "ВАШ-ANON-КЛЮЧ";
+const TURNSTILE_SITEKEY = "ВАШ-SITE-KEY";
+// Классы-кандидаты, за которые голосуют. 9 классы добавим, когда пришлёшь список.
+// Классы голосующих: параллели и буквы
+const VOTER_GRADES = [1,2,3,4,5,6,7,8,9,10,11];
+const VOTER_LETTERS = ["А","Б","В","Г","Д","Е","Ж","З"];
+const CLASSES = ["5А","5Б","6А","7А","7Б","8А","10А","10Б","10Г"];
+// Положи фото в папку photos и впиши сюда имена файлов (нужно согласие школы и родителей!)
+const PHOTOS = [
+  // "photos/1.jpg", "photos/2.jpg", "photos/3.jpg"
+];
+/* ======================== */
+
+const $ = s => document.querySelector(s);
+/* Устройство: один и тот же телефон или компьютер голосует один раз */
+function getDevice(){ try{ let d=localStorage.getItem("dev"); if(!d){ d=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now()); localStorage.setItem("dev",d);} return d; }catch(e){ return ""; } }
+function markVoted(){ try{ localStorage.setItem("voted","1"); }catch(e){} }
+function alreadyVoted(){ try{ return localStorage.getItem("voted")==="1"; }catch(e){ return false; } }
+const S = {type:"student", name:"", vg:"", vl:"", vcls:"", cls:""};
+
+/* Фон из фотографий (если фото нет, показываются цветные плитки) */
+(function(){
+  const wall = $("#wall"), n = 140;
+  for(let i=0;i<n;i++){
+    const d = document.createElement("div");
+    d.style.backgroundImage = PHOTOS.length ? `url("${PHOTOS[i % PHOTOS.length]}")` : "none";
+    if(!PHOTOS.length) d.style.background = `hsl(${(i*47)%360} 45% ${28+(i%5)*5}%)`;
+    wall.appendChild(d);
+  }
+})();
+
+function go(id){
+  document.querySelectorAll("section").forEach(s => s.hidden = s.id !== id);
+  window.scrollTo(0,0);
+  if(id === "s4") renderCaptcha();
+}
+function err(id, t){ const e = $(id); e.textContent = t; e.style.display = t ? "block" : "none"; }
+document.querySelectorAll("[data-back]").forEach(b => b.onclick = () => go(b.dataset.back));
+
+/* Шаг 1 */
+document.querySelectorAll("input[name=type]").forEach(r => r.onchange = () => {
+  S.type = r.value;
+  $("#nameLabel").textContent = S.type === "parent" ? "Имя и фамилия вашего ребёнка" : "Твоё имя и фамилия";
+});
+$("#n1").onclick = () => {
+  const v = $("#name").value.trim().replace(/\s+/g," ");
+  if(v.length < 3 || !v.includes(" ")){ err("#e1","Впиши имя и фамилию полностью."); return; }
+  S.name = v; err("#e1",""); go("sv");
+};
+
+/* Шаг 2: класс голосующего */
+function chips(el, list, key){
+  el.innerHTML = list.map(() => `<button type="button" class="chip" aria-pressed="false"></button>`).join("");
+  el.querySelectorAll("button").forEach((b,i) => {
+    b.textContent = list[i];
+    b.onclick = () => {
+      el.querySelectorAll("button").forEach(o => o.setAttribute("aria-pressed","false"));
+      b.setAttribute("aria-pressed","true"); S[key] = String(list[i]);
+    };
+  });
+}
+chips($("#vg"), VOTER_GRADES, "vg");
+chips($("#vl"), VOTER_LETTERS, "vl");
+$("#nv").onclick = () => {
+  if(!S.vg || !S.vl){ err("#ev","Выбери параллель и букву класса."); return; }
+  S.vcls = S.vg + S.vl; err("#ev",""); go("s2");
+};
+
+/* Шаг 3: большой список классов, по нажатию сразу следующий шаг */
+$("#classes").innerHTML = CLASSES.map(c => `<button type="button" class="cls" aria-pressed="false"><span></span><i></i></button>`).join("");
+$("#classes").querySelectorAll("button").forEach((b,i) => {
+  b.firstChild.textContent = CLASSES[i];
+  b.onclick = () => {
+    $("#classes").querySelectorAll("button").forEach(o => o.setAttribute("aria-pressed","false"));
+    b.setAttribute("aria-pressed","true"); S.cls = CLASSES[i];
+    setTimeout(toConfirm, 250);
+  };
+});
+
+/* Шаг 3: подтверждение */
+function toConfirm(){
+  $("#c-type").textContent = S.type === "parent" ? "Родитель" : "Ученик";
+  $("#c-name").textContent = S.name;
+  $("#c-vclass").textContent = S.vcls;
+  $("#c-class").textContent = S.cls;
+  go("s4");
+}
+
+/* Капча и отправка */
+let widgetId = null;
+function renderCaptcha(){
+  if(!window.turnstile){ setTimeout(renderCaptcha, 300); return; }
+  if(widgetId === null) widgetId = turnstile.render("#cap", {sitekey: TURNSTILE_SITEKEY});
+  else turnstile.reset(widgetId);
+}
+const TEXT = {
+  duplicate: "За этого ученика уже проголосовали.",
+  device: "С этого устройства уже голосовали. Один голос на устройство.",
+  ip: "Из этой сети (интернета) уже голосовали. Один голос на сеть.",
+  bad_name: "Проверь имя: впиши имя и фамилию полностью.",
+  bad_class: "Выбери класс из списка.",
+  captcha: "Пройди проверку «Я не робот» и нажми ещё раз.",
+  bad: "Что-то пошло не так. Обнови страницу и попробуй ещё раз."
+};
+$("#send").onclick = async () => {
+  const token = widgetId !== null ? turnstile.getResponse(widgetId) : "";
+  if(!token){ err("#e4", TEXT.captcha); return; }
+  err("#e4",""); $("#send").disabled = true;
+  try{
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/vote`, {
+      method:"POST",
+      headers:{"Content-Type":"application/json", apikey:SUPABASE_ANON_KEY, Authorization:`Bearer ${SUPABASE_ANON_KEY}`},
+      body: JSON.stringify({name:S.name, cls:S.vcls, candidate:S.cls, type:S.type, device:getDevice(), token})
+    });
+    const r = await res.json();
+    if(r === "ok"){ markVoted(); go("s5"); return; }
+    err("#e4", TEXT[r] || TEXT.bad); turnstile.reset(widgetId);
+  }catch(e){
+    err("#e4","Нет связи с сервером. Проверь интернет и попробуй ещё раз.");
+  }
+  $("#send").disabled = false;
+};
+if(alreadyVoted()){
+  $("#s5 h1").textContent = "Вы уже проголосовали";
+  $("#s5 .step").textContent = "С этого устройства можно голосовать один раз.";
+  go("s5");
+}
+</script>
+</body>
+</html>
