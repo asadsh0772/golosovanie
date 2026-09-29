@@ -50,7 +50,8 @@ dt{color:var(--muted)}dd{margin:0;font-weight:600;word-break:break-word}
 .done .big{font-size:3rem;color:var(--ok);line-height:1}
 [hidden]{display:none!important}
 </style>
-<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+<script src="https://jsdelivr.net"></script>
+<script src="https://cloudflare.com" async defer></script>
 </head>
 <body>
 <div class="wall" id="wall" aria-hidden="true"></div>
@@ -115,22 +116,25 @@ dt{color:var(--muted)}dd{margin:0;font-weight:600;word-break:break-word}
 </main>
 
 <script>
-
+/* ====== НАСТРОЙКИ ====== */
 const SUPABASE_URL = "https://supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_U_SROWzGEsrhx0WqDdCibQ__H1EU9NB";
-const TURNSTILE_SITEKEY = "ТВОЙ_ПУБЛИЧНЫЙ_SITE_KEY_ИЗ_CLOUDFLARE";
+const TURNSTILE_SITEKEY = "0x4AAAAAAFJINqa-bKPDC_KY";
 
 const VOTER_GRADES =;
 const VOTER_LETTERS = ["А","Б","В","Г","Д","Е","Ж","З"];
 const CLASSES = ["5А","5Б","6А","7А","7Б","8А","10А","10Б","10Г"];
+const PHOTOS = [];
+/* ======================== */
 
 const $ = s => document.querySelector(s);
-
 function getDevice(){ try{ let d=localStorage.getItem("dev"); if(!d){ d=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now()); localStorage.setItem("dev",d);} return d; }catch(e){ return ""; } }
 function markVoted(){ try{ localStorage.setItem("voted","1"); }catch(e){} }
 function alreadyVoted(){ try{ return localStorage.getItem("voted")==="1"; }catch(e){ return false; } }
 const S = {type:"student", name:"", vg:"", vl:"", vcls:"", cls:""};
+let widgetId = null;
 
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 (function(){
   const wall = $("#wall"), n = 140;
@@ -150,90 +154,114 @@ function go(id){
 function err(id, t){ const e = $(id); e.textContent = t; e.style.display = t ? "block" : "none"; }
 document.querySelectorAll("[data-back]").forEach(b => b.onclick = () => go(b.dataset.back));
 
-
+/* Шаг 1 */
 document.querySelectorAll("input[name=type]").forEach(r => r.onchange = () => {
   S.type = r.value;
   $("#nameLabel").textContent = S.type === "parent" ? "Имя и фамилия вашего ребёнка" : "Твоё имя и фамилия";
 });
+
 $("#n1").onclick = () => {
-  const v = $("#name").value.trim().replace(/\s+/g," ");
-  if(v.length < 3 || !v.includes(" ")){ err("#e1","Впиши имя и фамилию полностью."); return; }
-  S.name = v; err("#e1",""); go("sv");
+  if(alreadyVoted()){ err("#e1", "Вы уже голосовали с этого устройства!"); return; }
+  const v = $("#name").value.trim();
+  if(v.split(/\s+/).length < 2){ err("#e1", "Введите имя и фамилию"); return; }
+  S.name = v;
+  err("#e1", "");
+  buildChips();
+  go("sv");
 };
 
-function chips(el, list, key){
-  el.innerHTML = list.map(() => `<button type="button" class="chip" aria-pressed="false"></button>`).join("");
-  el.querySelectorAll("button").forEach((b,i) => {
-    b.textContent = list[i];
-    b.onclick = () => {
-      el.querySelectorAll("button").forEach(o => o.setAttribute("aria-pressed","false"));
-      b.setAttribute("aria-pressed","true"); S[key] = String(list[i]);
-    };
+/* Шаг 2 */
+function buildChips(){
+  const vg = $("#vg"), vl = $("#vl");
+  vg.innerHTML = ""; vl.innerHTML = "";
+  VOTER_GRADES.forEach(g => {
+    const b = document.createElement("button"); b.className = "chip"; b.textContent = g;
+    b.onclick = () => { document.querySelectorAll("#vg .chip").forEach(c=>c.removeAttribute("aria-pressed")); b.setAttribute("aria-pressed","true"); S.vg = g; };
+    vg.appendChild(b);
+  });
+  VOTER_LETTERS.forEach(l => {
+    const b = document.createElement("button"); b.className = "chip"; b.textContent = l;
+    b.onclick = () => { document.querySelectorAll("#vl .chip").forEach(c=>c.removeAttribute("aria-pressed")); b.setAttribute("aria-pressed","true"); S.vl = l; };
+    vl.appendChild(b);
   });
 }
-chips($("#vg"), VOTER_GRADES, "vg");
-chips($("#vl"), VOTER_LETTERS, "vl");
+
 $("#nv").onclick = () => {
-  if(!S.vg || !S.vl){ err("#ev","Выбери параллель и букву класса."); return; }
-  S.vcls = S.vg + S.vl; err("#ev",""); go("s2");
+  if(!S.vg || !S.vl){ err("#ev", "Выберите параллель и букву"); return; }
+  S.vcls = S.vg + S.vl;
+  err("#ev", "");
+  buildClasses();
+  go("s2");
 };
 
-$("#classes").innerHTML = CLASSES.map(c => `<button type="button" class="cls" aria-pressed="false"><span></span><i></i></button>`).join("");
-$("#classes").querySelectorAll("button").forEach((b,i) => {
-  b.firstChild.textContent = CLASSES[i];
-  b.onclick = () => {
-    $("#classes").querySelectorAll("button").forEach(o => o.setAttribute("aria-pressed","false"));
-    b.setAttribute("aria-pressed","true"); S.cls = CLASSES[i];
-    setTimeout(toConfirm, 250);
-  };
-});
+/* Шаг 3 */
+function buildClasses(){
+  const container = $("#classes"); container.innerHTML = "";
+  CLASSES.forEach(c => {
+    const b = document.createElement("button"); b.className = "cls";
+    b.innerHTML = `${c} <i></i>`;
+    b.onclick = () => { S.cls = c; confirmStage(); };
+    container.appendChild(b);
+  });
+}
 
-function toConfirm(){
-  $("#c-type").textContent = S.type === "parent" ? "Родитель" : "Ученик";
+/* Шаг 4 */
+function confirmStage(){
+  $("#c-type").textContent = S.type === "student" ? "Ученик" : "Родитель";
   $("#c-name").textContent = S.name;
   $("#c-vclass").textContent = S.vcls;
   $("#c-class").textContent = S.cls;
+  err("#e4", "");
   go("s4");
 }
 
-let widgetId = null;
-function renderCaptcha(){
-  if(!window.turnstile){ setTimeout(renderCaptcha, 300); return; }
-  if(widgetId === null) widgetId = turnstile.render("#cap", {sitekey: TURNSTILE_SITEKEY});
-  else turnstile.reset(widgetId);
-}
-const TEXT = {
-  duplicate: "За этого ученика уже проголосовали.",
-  device: "С этого устройства уже голосовали. Один голос на устройство.",
-  ip: "Из этой сети (интернета) уже голосовали. Один голос на сеть.",
-  bad_name: "Проверь имя: впиши имя и фамилию полностью.",
-  bad_class: "Выбери класс из списка.",
-  captcha: "Пройди проверку «Я не робот» и нажми ещё раз.",
-  bad: "Что-то пошло не так. Обнови страницу и попробуй ещё раз."
-};
-$("#send").onclick = async () => {
-  const token = widgetId !== null ? turnstile.getResponse(widgetId) : "";
-  if(!token){ err("#e4", TEXT.captcha); return; }
-  err("#e4",""); $("#send").disabled = true;
-  try{
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/bright-action`, {
-      method:"POST",
-      headers:{"Content-Type":"application/json", apikey:SUPABASE_ANON_KEY, Authorization:`Bearer ${SUPABASE_ANON_KEY}`},
-      body: JSON.stringify({name:S.name, cls:S.vcls, candidate:S.cls, type:S.type, device:getDevice(), token})
-    });
-    const r = await res.json();
-    if(r === "ok"){ markVoted(); go("s5"); return; }
-    err("#e4", TEXT[r] || TEXT.bad); turnstile.reset(widgetId);
-  }catch(e){
-    err("#e4","Нет связи с сервером. Проверь интернет и попробуй ещё раз.");
+function renderCaptcha() {
+  if (widgetId !== null) {
+    turnstile.reset(widgetId);
+    return;
   }
-  $("#send").disabled = false;
-};
-if(alreadyVoted()){
-  $("#s5 h1").textContent = "Вы уже проголосовали";
-  $("#s5 .step").textContent = "С этого устройства можно голосовать один раз.";
-  go("s5");
+  widgetId = turnstile.render('#cap', {
+    sitekey: TURNSTILE_SITEKEY,
+    theme: 'light',
+    callback: function(token) {
+      err("#e4", "");
+    }
+  });
 }
-</script>
-</body>
-</html>
+
+$("#send").onclick = async () => {
+const token = turnstile.getResponse(widgetId);
+if(!token) { err("#e4", "Пройди проверку «Я не робот»"); return; }
+$("#send").disabled = true;
+err("#e4", "");
+try {
+const fakeIp = "ip_" + Math.floor(Math.random() * 1000000);
+const { data, error } = await supabaseClient.rpc('cast_vote', {
+p_name: S.name,
+p_class: S.vcls,
+p_candidate: S.cls,
+p_type: S.type,
+p_device: getDevice(),
+p_ip: fakeIp,
+p_max_ip: 5
+});
+if (error) throw error;
+if (data === "ok") {
+markVoted();
+go("s5");
+} else if (data === "duplicate") {
+err("#e4", "Вы уже голосовали с этим именем в данном классе!");
+$("#send").disabled = false;
+} else if (data === "bad_class") {
+err("#e4", "Ошибка формата класса.");
+$("#send").disabled = false;
+} else {
+err("#e4", "База данных отклонила голос: " + data);
+$("#send").disabled = false;
+}
+} catch (e) {
+err("#e4", "Ошибка отправки: " + e.message);
+$("#send").disabled = false;
+}
+};
+
