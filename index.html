@@ -115,29 +115,23 @@ dt{color:var(--muted)}dd{margin:0;font-weight:600;word-break:break-word}
 </main>
 
 <script>
-/* ====== НАСТРОЙКИ ====== */
+
 const SUPABASE_URL = "https://iimrtvqgtzfgpemxkjjo.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_U_SROWzGEsrhx0WqDdCibQ__H1EU9NB";
-const TURNSTILE_SITEKEY = "0x4AAAAAAFJINqa-bKPDC_KY";
-// Классы-кандидаты, за которые голосуют. 9 классы добавим, когда пришлёшь список.
-// Классы голосующих: параллели и буквы
+const TURNSTILE_SITEKEY = "0x4AAAAAAFJOgi3elhZ3kB7U";
+
 const VOTER_GRADES = [1,2,3,4,5,6,7,8,9,10,11];
 const VOTER_LETTERS = ["А","Б","В","Г","Д","Е","Ж","З"];
 const CLASSES = ["5А","5Б","6А","7А","7Б","8А","10А","10Б","10Г"];
-// Положи фото в папку photos и впиши сюда имена файлов (нужно согласие школы и родителей!)
-const PHOTOS = [
-  // "photos/1.jpg", "photos/2.jpg", "photos/3.jpg"
-];
-/* ======================== */
 
 const $ = s => document.querySelector(s);
-/* Устройство: один и тот же телефон или компьютер голосует один раз */
+
 function getDevice(){ try{ let d=localStorage.getItem("dev"); if(!d){ d=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now()); localStorage.setItem("dev",d);} return d; }catch(e){ return ""; } }
 function markVoted(){ try{ localStorage.setItem("voted","1"); }catch(e){} }
 function alreadyVoted(){ try{ return localStorage.getItem("voted")==="1"; }catch(e){ return false; } }
 const S = {type:"student", name:"", vg:"", vl:"", vcls:"", cls:""};
 
-/* Фон из фотографий (если фото нет, показываются цветные плитки) */
+
 (function(){
   const wall = $("#wall"), n = 140;
   for(let i=0;i<n;i++){
@@ -156,7 +150,7 @@ function go(id){
 function err(id, t){ const e = $(id); e.textContent = t; e.style.display = t ? "block" : "none"; }
 document.querySelectorAll("[data-back]").forEach(b => b.onclick = () => go(b.dataset.back));
 
-/* Шаг 1 */
+
 document.querySelectorAll("input[name=type]").forEach(r => r.onchange = () => {
   S.type = r.value;
   $("#nameLabel").textContent = S.type === "parent" ? "Имя и фамилия вашего ребёнка" : "Твоё имя и фамилия";
@@ -167,7 +161,6 @@ $("#n1").onclick = () => {
   S.name = v; err("#e1",""); go("sv");
 };
 
-/* Шаг 2: класс голосующего */
 function chips(el, list, key){
   el.innerHTML = list.map(() => `<button type="button" class="chip" aria-pressed="false"></button>`).join("");
   el.querySelectorAll("button").forEach((b,i) => {
@@ -185,7 +178,6 @@ $("#nv").onclick = () => {
   S.vcls = S.vg + S.vl; err("#ev",""); go("s2");
 };
 
-/* Шаг 3: большой список классов, по нажатию сразу следующий шаг */
 $("#classes").innerHTML = CLASSES.map(c => `<button type="button" class="cls" aria-pressed="false"><span></span><i></i></button>`).join("");
 $("#classes").querySelectorAll("button").forEach((b,i) => {
   b.firstChild.textContent = CLASSES[i];
@@ -196,7 +188,6 @@ $("#classes").querySelectorAll("button").forEach((b,i) => {
   };
 });
 
-/* Шаг 3: подтверждение */
 function toConfirm(){
   $("#c-type").textContent = S.type === "parent" ? "Родитель" : "Ученик";
   $("#c-name").textContent = S.name;
@@ -205,7 +196,6 @@ function toConfirm(){
   go("s4");
 }
 
-/* Капча и отправка */
 let widgetId = null;
 function renderCaptcha(){
   if(!window.turnstile){ setTimeout(renderCaptcha, 300); return; }
