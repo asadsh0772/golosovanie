@@ -116,7 +116,6 @@ dt{color:var(--muted)}dd{margin:0;font-weight:600;word-break:break-word}
 </main>
 
 <script>
-/* ====== НАСТРОЙКИ ====== */
 const SUPABASE_URL = "https://supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_U_SROWzGEsrhx0WqDdCibQ__H1EU9NB";
 const TURNSTILE_SITEKEY = "0x4AAAAAAFJINqa-bKPDC_KY";
@@ -125,7 +124,6 @@ const VOTER_GRADES =;
 const VOTER_LETTERS = ["А","Б","В","Г","Д","Е","Ж","З"];
 const CLASSES = ["5А","5Б","6А","7А","7Б","8А","10А","10Б","10Г"];
 const PHOTOS = [];
-/* ======================== */
 
 const $ = s => document.querySelector(s);
 function getDevice(){ try{ let d=localStorage.getItem("dev"); if(!d){ d=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now()); localStorage.setItem("dev",d);} return d; }catch(e){ return ""; } }
@@ -154,7 +152,6 @@ function go(id){
 function err(id, t){ const e = $(id); e.textContent = t; e.style.display = t ? "block" : "none"; }
 document.querySelectorAll("[data-back]").forEach(b => b.onclick = () => go(b.dataset.back));
 
-/* Шаг 1 */
 document.querySelectorAll("input[name=type]").forEach(r => r.onchange = () => {
   S.type = r.value;
   $("#nameLabel").textContent = S.type === "parent" ? "Имя и фамилия вашего ребёнка" : "Твоё имя и фамилия";
@@ -170,7 +167,6 @@ $("#n1").onclick = () => {
   go("sv");
 };
 
-/* Шаг 2 */
 function buildChips(){
   const vg = $("#vg"), vl = $("#vl");
   vg.innerHTML = ""; vl.innerHTML = "";
@@ -194,7 +190,6 @@ $("#nv").onclick = () => {
   go("s2");
 };
 
-/* Шаг 3 */
 function buildClasses(){
   const container = $("#classes"); container.innerHTML = "";
   CLASSES.forEach(c => {
