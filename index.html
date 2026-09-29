@@ -226,7 +226,7 @@ $("#send").onclick = async () => {
   if(!token){ err("#e4", TEXT.captcha); return; }
   err("#e4",""); $("#send").disabled = true;
   try{
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/vote`, {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/bright-action`, {
       method:"POST",
       headers:{"Content-Type":"application/json", apikey:SUPABASE_ANON_KEY, Authorization:`Bearer ${SUPABASE_ANON_KEY}`},
       body: JSON.stringify({name:S.name, cls:S.vcls, candidate:S.cls, type:S.type, device:getDevice(), token})
